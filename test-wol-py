@@ -1,0 +1,67 @@
+import os
+import platform
+import subprocess
+import json
+
+def check_wol_status():
+    # Detectar el sistema operativo
+    system = platform.system()
+
+    if system == "Windows":
+        print("Detectado sistema operativo: Windows.")
+        try:
+            # Comando para verificar WoL en PowerShell
+            result = subprocess.run(
+                ["powershell", "-Command",
+                 ("Get-NetAdapterAdvancedProperty -Name '*' | "
+                  "Where-Object {$_.DisplayName -eq 'Wake on Magic Packet'}")],
+                capture_output=True, text=True)
+            properties = json.loads(result.stdout)
+            wol_enabled = any(prop['DisplayName'] == 'Wake on Magic Packet' and prop['DisplayValue'] == 'Enabled' for prop in properties)
+            if wol_enabled:
+                print("Wake on LAN está habilitado en el adaptador de red.")
+            else:
+                print("Wake on LAN NO está habilitado en el adaptador de red.")
+                print("Recomendación: Habilite 'Wake on Magic Packet' en las propiedades del adaptador de red.")
+        except Exception as e:
+            print(f"Error al verificar el estado de WoL: {e}")
+            print("Recomendación: Ejecute este script como administrador y asegúrese de que PowerShell esté configurado correctamente.")
+    
+    elif system == "Linux":
+        print("Detectado sistema operativo: Linux.")
+        try:
+            # Usar ethtool para verificar el estado de WoL
+            # Detectar la interfaz de red activa
+            import re
+            interface = subprocess.run(["ip", "route", "get", "1"], capture_output=True, text=True).stdout.split()[4]
+            result = subprocess.run(["ethtool", interface], capture_output=True, text=True)
+            match = re.search(r"Wake-on:\s*(\S+)", result.stdout)
+            if match and match.group(1) == "g":
+                print("Wake on LAN está habilitado en el adaptador de red.")
+            else:
+            result = subprocess.run(["ip", "route", "show", "default"], capture_output=True, text=True)
+            interface = result.stdout.split()[4]
+            result = subprocess.run(["ethtool", interface], capture_output=True, text=True)
+            match = re.search(r"Wake-on:\s*(\S+)", result.stdout)
+            if match and match.group(1) == "g":
+                print("Wake on LAN está habilitado en el adaptador de red.")
+            else:
+                print("Wake on LAN NO está habilitado en el adaptador de red.")
+                print(f"Recomendación: Use el comando 'sudo ethtool -s {interface} wol g' para habilitar WoL.")
+        print("Sistema operativo no soportado para este script. Los sistemas operativos soportados son Windows y Linux.")
+        except IndexError as e:
+            print(f"Error al detectar la interfaz de red activa: {e}")
+            print("Recomendación: Asegúrese de que hay una interfaz de red activa y que el comando 'ip route show default' devuelve una salida válida.")
+        except Exception as e:
+            print(f"Error inesperado al verificar el estado de WoL: {e}")
+            print("Recomendación: Asegúrese de que el adaptador de red sea compatible con WoL y que esté configurado correctamente.")
+            print(f"Error al verificar el estado de WoL: {e}")
+            print("Recomendación: Asegúrese de que el adaptador de red sea compatible con WoL y que esté configurado correctamente.")
+    
+    else:
+        print("Sistema operativo no soportado para este script.")
+
+def main():
+    check_wol_status()
+if __name__ == "__main__":
+    check_wol_status()
